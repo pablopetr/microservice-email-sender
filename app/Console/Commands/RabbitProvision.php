@@ -4,9 +4,8 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
-use PhpAmqpLib\Message\AMQPMessage;
-use PhpAmqpLib\Wire\AMQPTable;
 use PhpAmqpLib\Exception\AMQPProtocolChannelException;
+use PhpAmqpLib\Wire\AMQPTable;
 
 class RabbitProvision extends Command
 {
@@ -33,17 +32,17 @@ class RabbitProvision extends Command
         $ch = $conn->channel();
 
         $exchange = $this->argument('exchange');
-        $queue    = $this->argument('queue');
-        $rk       = $this->argument('routingKey');
+        $queue = $this->argument('queue');
+        $rk = $this->argument('routingKey');
 
-        $withDlx     = (bool) $this->option('with-dlx');
-        $dlxName     = (string) $this->option('dlx');
-        $dlqSuffix   = (string) $this->option('dlq-suffix');
-        $withRetry   = (bool) $this->option('with-retry');
-        $retryTtl    = (int) $this->option('retry-ttl');
+        $withDlx = (bool) $this->option('with-dlx');
+        $dlxName = (string) $this->option('dlx');
+        $dlqSuffix = (string) $this->option('dlq-suffix');
+        $withRetry = (bool) $this->option('with-retry');
+        $retryTtl = (int) $this->option('retry-ttl');
 
-        $dlq = $queue . $dlqSuffix;
-        $retryQueue = $queue . '.retry';
+        $dlq = $queue.$dlqSuffix;
+        $retryQueue = $queue.'.retry';
 
         // 1) Exchange principal (topic)
         $ch->exchange_declare($exchange, 'topic', false, true, false);
@@ -70,19 +69,19 @@ class RabbitProvision extends Command
             $args = [];
             if ($withDlx) {
                 $args = [
-                    'x-dead-letter-exchange'    => $dlxName,
+                    'x-dead-letter-exchange' => $dlxName,
                     'x-dead-letter-routing-key' => $dlq,
                 ];
             }
             $ch->queue_declare($queue, false, true, false, false, false, new AMQPTable($args));
-            $this->info("Queue created: {$queue} (args: ".json_encode($args).")");
+            $this->info("Queue created: {$queue} (args: ".json_encode($args).')');
         }
 
         // 4) Retry (opcional): TTL + volta pela default exchange para a principal
         if ($withRetry) {
             $args = [
-                'x-message-ttl'             => $retryTtl,
-                'x-dead-letter-exchange'    => '',       // default exchange
+                'x-message-ttl' => $retryTtl,
+                'x-dead-letter-exchange' => '',       // default exchange
                 'x-dead-letter-routing-key' => $queue,   // volta pra principal
             ];
             $ch->queue_declare($retryQueue, false, true, false, false, false, new AMQPTable($args));
@@ -96,8 +95,8 @@ class RabbitProvision extends Command
         $conn->close();
 
         $this->info("OK: exchange={$exchange}, queue={$queue}, rk={$rk}"
-            . ($withDlx ? ", dlx={$dlxName}, dlq={$dlq}" : '')
-            . ($withRetry ? ", retry={$retryQueue}" : '')
+            .($withDlx ? ", dlx={$dlxName}, dlq={$dlq}" : '')
+            .($withRetry ? ", retry={$retryQueue}" : '')
         );
 
         return self::SUCCESS;

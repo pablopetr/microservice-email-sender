@@ -10,6 +10,6 @@ class SendTransferFailedEmail
 {
     public function execute(TransferFailedDTO $transferFailedDTO): void
     {
-         Mail::to($transferFailedDTO->fromEmail)->send(new TransferFailedMail($transferFailedDTO));
+        Mail::to($transferFailedDTO->fromEmail)->send(new TransferFailedMail($transferFailedDTO));
     }
 }

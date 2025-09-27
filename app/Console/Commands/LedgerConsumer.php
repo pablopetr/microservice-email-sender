@@ -22,20 +22,20 @@ class LedgerConsumer extends Command
 
     public function handle(): int
     {
-        $queue      = $this->argument('queue') ?? env('LEDGER_QUEUE', 'ledger.transfers.completed');
+        $queue = $this->argument('queue') ?? env('LEDGER_QUEUE', 'ledger.transfers.completed');
         $retryQueue = env('LEDGER_RETRY_QUEUE', $queue.'.retry');
-        $dlq        = env('LEDGER_DLQ', $queue.'.dlq');
+        $dlq = env('LEDGER_DLQ', $queue.'.dlq');
 
-        $host  = env('RABBITMQ_HOST','127.0.0.1');
-        $port  = (int) env('RABBITMQ_PORT',5672);
-        $user  = env('RABBITMQ_USER','guest');
-        $pass  = env('RABBITMQ_PASSWORD','guest');
-        $vhost = env('RABBITMQ_VHOST','/');
+        $host = env('RABBITMQ_HOST', '127.0.0.1');
+        $port = (int) env('RABBITMQ_PORT', 5672);
+        $user = env('RABBITMQ_USER', 'guest');
+        $pass = env('RABBITMQ_PASSWORD', 'guest');
+        $vhost = env('RABBITMQ_VHOST', '/');
 
         $this->warn("Connecting to amqp://{$user}@{$host}:{$port}{$vhost} queue={$queue}");
 
         $conn = new AMQPStreamConnection($host, $port, $user, $pass, $vhost);
-        $ch   = $conn->channel();
+        $ch = $conn->channel();
 
         try {
             [$qName, $messageCount, $consumerCount] = $ch->queue_declare($queue, true, true, false, false);
@@ -51,7 +51,7 @@ class LedgerConsumer extends Command
 
         $publishRetry = function (string $body) use ($ch, $retryQueue) {
             $msg = new AMQPMessage($body, [
-                'content_type'  => 'application/json',
+                'content_type' => 'application/json',
                 'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
             ]);
             $ch->basic_publish($msg, '', $retryQueue);
@@ -66,36 +66,39 @@ class LedgerConsumer extends Command
 
                 $eventId = $evt['event_id'] ?? $evt['idempotency_key'] ?? null;
 
-                if (!$eventId) { throw new \RuntimeException('event_id/idempotency_key ausente'); }
+                if (! $eventId) {
+                    throw new \RuntimeException('event_id/idempotency_key ausente');
+                }
 
                 if (DB::table('event_dedupe')->where('event_id', $eventId)->exists()) {
                     $ch->basic_ack($msg->getDeliveryTag());
+
                     return;
                 }
 
-                if($evt['event_type'] === 'payments.transfers.completed') {
+                if ($evt['event_type'] === 'payments.transfers.completed') {
                     $transferCompletedDTO = TransferCompletedDTO::fromEvent($evt);
 
                     (new SendTransferCompletedEmails)->execute($transferCompletedDTO);
                 }
 
-                if($evt['event_type'] === 'payments.transfers.failed') {
+                if ($evt['event_type'] === 'payments.transfers.failed') {
                     $transferFailedDTO = TransferFailedDTO::fromEvent($evt);
 
                     (new SendTransferFailedEmail)->execute($transferFailedDTO);
                 }
 
-                if($evt['event_type'] === 'accounts.users.created') {
-                    (new SendUserCreatedEmail())->execute($evt['data']);
+                if ($evt['event_type'] === 'accounts.users.created') {
+                    (new SendUserCreatedEmail)->execute($evt['data']);
                 }
 
-                if($evt['event_type'] === 'accounts.users.approved') {
-                    (new SendUserApprovedEmail())->execute($evt['data']);
+                if ($evt['event_type'] === 'accounts.users.approved') {
+                    (new SendUserApprovedEmail)->execute($evt['data']);
                 }
 
                 $ch->basic_ack($msg->getDeliveryTag());
             } catch (\Throwable $e) {
-                $this->error("     ERROR: ".$e->getMessage());
+                $this->error('     ERROR: '.$e->getMessage());
                 report($e);
 
                 try {
@@ -118,11 +121,17 @@ class LedgerConsumer extends Command
                 $this->output->write('.');
             }
         } catch (\Throwable $loopErr) {
-            $this->error("Loop error: ".$loopErr->getMessage());
+            $this->error('Loop error: '.$loopErr->getMessage());
             throw $loopErr;
         } finally {
-            try { $ch->close(); } catch (\Throwable $e) {}
-            try { $conn->close(); } catch (\Throwable $e) {}
+            try {
+                $ch->close();
+            } catch (\Throwable $e) {
+            }
+            try {
+                $conn->close();
+            } catch (\Throwable $e) {
+            }
         }
 
         return self::SUCCESS;

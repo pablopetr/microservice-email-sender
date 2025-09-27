@@ -8,10 +8,12 @@ use Symfony\Component\Process\Process as SymfonyProcess;
 class RabbitConsumeDefaults extends Command
 {
     protected $signature = 'rabbit:consume:defaults';
+
     protected $description = 'Run two consumers for transfers and accounts queues (hardcoded).';
 
     private const Q_TRANSFERS = 'dev.ledger.payments.transfers';
-    private const Q_ACCOUNTS  = 'dev.ledger.accounts.users';
+
+    private const Q_ACCOUNTS = 'dev.ledger.accounts.users';
 
     private array $procs = [];
 
@@ -22,7 +24,7 @@ class RabbitConsumeDefaults extends Command
 
         $cmds = [
             'transfers' => [$php, $artisan, 'ledger:consume', self::Q_TRANSFERS],
-            'accounts'  => [$php, $artisan, 'ledger:consume', self::Q_ACCOUNTS],
+            'accounts' => [$php, $artisan, 'ledger:consume', self::Q_ACCOUNTS],
         ];
 
         $this->info('Starting consumers:');
@@ -38,17 +40,20 @@ class RabbitConsumeDefaults extends Command
         $this->line('Consumers running. Press Ctrl+C to stop.');
 
         if (function_exists('pcntl_signal')) {
-            pcntl_signal(SIGINT, fn() => $this->stopChildren());
-            pcntl_signal(SIGTERM, fn() => $this->stopChildren());
+            pcntl_signal(SIGINT, fn () => $this->stopChildren());
+            pcntl_signal(SIGTERM, fn () => $this->stopChildren());
         }
 
         while (true) {
-            if (function_exists('pcntl_signal_dispatch')) pcntl_signal_dispatch();
+            if (function_exists('pcntl_signal_dispatch')) {
+                pcntl_signal_dispatch();
+            }
             foreach ($this->procs as $name => $proc) {
-                if (!$proc->isRunning()) {
+                if (! $proc->isRunning()) {
                     $exit = $proc->getExitCode();
                     $this->error('['.strtoupper($name)."] exited with code {$exit}");
                     $this->stopChildren();
+
                     return $exit ?? 1;
                 }
             }
@@ -63,7 +68,9 @@ class RabbitConsumeDefaults extends Command
                 if (method_exists($proc, 'signal')) {
                     $proc->signal(SIGTERM);
                     $proc->wait(3);
-                    if ($proc->isRunning()) $proc->signal(SIGKILL);
+                    if ($proc->isRunning()) {
+                        $proc->signal(SIGKILL);
+                    }
                 } else {
                     $proc->stop(3, SIGTERM);
                 }

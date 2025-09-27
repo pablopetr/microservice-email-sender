@@ -16,5 +16,8 @@ class RabbitMQJob extends BaseJob
         $this->delete();
     }
 
-    public function getName(): string { return 'rabbitmq.raw'; }
+    public function getName(): string
+    {
+        return 'rabbitmq.raw';
+    }
 }
