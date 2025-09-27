@@ -13,8 +13,6 @@ class RabbitMQJob extends BaseJob
 
         (new TransferCompletedHandler)->handle($raw);
 
-        logger()->alert($raw);
-
         $this->delete();
     }
 
